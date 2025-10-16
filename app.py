@@ -1,47 +1,40 @@
-from flask import Flask,request,render_template
-import numpy as np
+import streamlit as st
 import pandas as pd
+from src.pipeline.predict_pipeline import CustomData, PredictPipeline
 
-from sklearn.preprocessing import StandardScaler
-from src.pipeline.predict_pipeline import CustomData,PredictPipeline
+st.title("Student Score Predictor")  # Or your app title
 
-application=Flask(__name__)
+# --- Sidebar for inputs ---
+st.sidebar.header("Enter Data for Prediction")
 
-app=application
+gender = st.sidebar.selectbox("Gender", ["male", "female"])
+ethnicity = st.sidebar.selectbox("Race/Ethnicity", ["group A", "group B", "group C", "group D", "group E"])
+parent_edu = st.sidebar.selectbox("Parental Level of Education", [
+    "some high school", "high school", "some college", "associate's degree", "bachelor's degree", "master's degree"])
+lunch = st.sidebar.selectbox("Lunch", ["standard", "free/reduced"])
+prep_course = st.sidebar.selectbox("Test Preparation Course", ["none", "completed"])
+reading_score = st.sidebar.number_input("Reading Score", min_value=0, max_value=100, value=50)
+writing_score = st.sidebar.number_input("Writing Score", min_value=0, max_value=100, value=50)
 
-## Route for a home page
+# --- Button to Predict ---
+if st.button("Predict"):
+    # Construct CustomData object
+    data = CustomData(
+        gender=gender,
+        race_ethnicity=ethnicity,
+        parental_level_of_education=parent_edu,
+        lunch=lunch,
+        test_preparation_course=prep_course,
+        reading_score=reading_score,
+        writing_score=writing_score
+    )
 
-@app.route('/')
-def index():
-    return render_template('index.html') 
+    # Convert to dataframe
+    pred_df = data.get_data_as_data_frame()
+    st.write("Input Data:")
+    st.dataframe(pred_df)
 
-@app.route('/predictdata',methods=['GET','POST'])
-def predict_datapoint():
-    if request.method=='GET':
-        return render_template('home.html')
-    else:
-        data=CustomData(
-            gender=request.form.get('gender'),
-            race_ethnicity=request.form.get('ethnicity'),
-            parental_level_of_education=request.form.get('parental_level_of_education'),
-            lunch=request.form.get('lunch'),
-            test_preparation_course=request.form.get('test_preparation_course'),
-            reading_score=float(request.form.get('writing_score')),
-            writing_score=float(request.form.get('reading_score'))
-
-        )
-        pred_df=data.get_data_as_data_frame()
-        print(pred_df)
-        print("Before Prediction")
-
-        predict_pipeline=PredictPipeline()
-        print("Mid Prediction")
-        results=predict_pipeline.predict(pred_df)
-        print("after Prediction")
-        c = min(99 , results[0])
-        return render_template('home.html',results=c)
-    
-
-if __name__=="__main__":
-    app.run(host="0.0.0.0")        
-
+    # Predict
+    pipeline = PredictPipeline()
+    result = pipeline.predict(pred_df)
+    st.success(f"Predicted Score: {min(99, result[0])}")
